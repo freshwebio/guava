@@ -1,0 +1,50 @@
+
+module ListUtils exposing { filter, reduce }
+
+function filter(list, f) :: a[] -> (a -> Boolean) -> a[] {
+  case list {
+    [] -> []
+    x:[] -> if f(x) then [x] else []
+    x:xs -> { 
+      if f(x) {
+        [x, ...filter(xs, f)] 
+      } else { 
+        filter(xs, f)
+      }
+    }
+  }
+}
+
+/**
+ * Pattern matching in function arguments?
+ */
+type Filter :: a[] -> (a -> Boolean) -> a[]
+function filter :: Filter
+filter([], f) {
+  []
+}
+
+filter(x:[], f) {
+  if f(x) then [x] else []
+}
+
+filter(x:xs, f) {
+  if f(x) {
+    [x, ...filter(xs, f)]
+  } else {
+    filter(xs, f)
+  }
+}
+
+/**
+ * Reduces over a list of type a to produce a value of type b.
+ */
+type Fold :: a[] -> (b -> a -> b) -> b -> b
+function reduce(list, f, initial) :: Fold {
+  // Pattern matching here!
+  case list {
+    [] -> initial,
+    x:[] -> f(initial, x),
+    x:xs -> let accum = f(initial, x) in reduce(accum, f, xs)
+  }
+}

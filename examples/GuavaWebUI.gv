@@ -1,0 +1,15 @@
+module GuavaWebUI exposing { loginForm }
+
+// Using React concepts?
+
+data LoginFormProperties = {
+  username String
+}
+
+function loginForm(props) :: LoginFormProperties -> GuavaWebUIComponent {
+  @(
+    <div class="login-form">
+      <input name="username" value={props.username} />
+    </div>
+  )
+}
