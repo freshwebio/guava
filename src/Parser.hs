@@ -6,66 +6,68 @@ import Text.Parsec
 import qualified Text.Parsec.Token as Token
 import Lexer
 
-data Module = Module String [Stmt]
-            | ModuleExposing String Exposing [Stmt]
-            deriving (Show)
+data Module = Module String Stmts
+            | ModuleExposing String Exposing Stmts
+            deriving (Show, Eq)
 
-data Exposing = Exposes [String] deriving (Show)
+data Exposing = Exposes [String] deriving (Show, Eq)
+
+data Stmts = Statements [Stmt] deriving (Show, Eq)
 
 data Stmt = Function FunctionStmt
           | TypeDefinition TypeDef
-          deriving (Show)
+          deriving (Show, Eq)
 
 data FunctionStmt = FunctionWithInlineTypeDef String DefArguments [ValueType] Expr
                   | FunctionMultipleInstancesTypeDef String TypeDef [FunctionImpl]
                   | FunctionMultipleInstancesTypeDefRef String String [FunctionImpl]
                   | FunctionWithTypeDefRef String DefArguments String Expr
-                  deriving (Show)
+                  deriving (Show, Eq)
 
-data FunctionImpl = FunctionImpl String DefArguments Expr deriving (Show)
+data FunctionImpl = FunctionImpl String DefArguments Expr deriving (Show, Eq)
 
-data TypeDef = TypeDef String [ValueType] deriving (Show)
+data TypeDef = TypeDef String [ValueType] deriving (Show, Eq)
 
 data ValueType = ValueTypeSingle String |
                  ValueTypeList String |
-                 ValueTypeFunction [ValueType] deriving (Show)
+                 ValueTypeFunction [ValueType] deriving (Show, Eq)
 
-data DefArguments = Args [DefArgument] deriving (Show)
+data DefArguments = Args [DefArgument] deriving (Show, Eq)
 
-data DefArgument = DefArgName String | DefArgPattern Pattern deriving (Show)
+data DefArgument = DefArgName String | DefArgPattern Pattern deriving (Show, Eq)
 
 data Expr = CaseBlock Expr CaseMatches
           | If BExpr Expr Expr
           | BoolExpr BExpr
           | LetInExpr [LetVarBind] Expr
           | List [ListElementExpr]
-          deriving (Show)
+          deriving (Show, Eq)
 
 data ListElementExpr = ListElemSpread Expr 
                      | ListElemExpr Expr
-                     deriving (Show)
+                     deriving (Show, Eq)
 
-data LetVarBind = LetVarBind String Expr deriving (Show)
+data LetVarBind = LetVarBind String Expr deriving (Show, Eq)
 
 data BExpr = BoolConst Bool
            | BoolVar String
            | Not BExpr
            | BBinary BBinOp BExpr BExpr
            | BoolFunctionCall String CallArguments
-           deriving (Show)
+           deriving (Show, Eq)
 
-data CallArguments = CallArgs [Expr] deriving (Show)
+data CallArguments = CallArgs [Expr] deriving (Show, Eq)
 
-data BBinOp = And | Or deriving (Show)
+data BBinOp = And | Or deriving (Show, Eq)
 
-data CaseMatches = CaseMatchSeq [CaseMatch] deriving (Show)
+data CaseMatches = CaseMatchSeq [CaseMatch] deriving (Show, Eq)
 
-data CaseMatch = Case Pattern Expr deriving (Show)
+data CaseMatch = Case Pattern Expr deriving (Show, Eq)
 
 data Pattern = PatternBindingEmptyList -- []
              | PatternBindingListDestructureNElements [String] -- (x:[] x:y:[] x:y:z:[])
              | PatternBindingListDestructure [String] String -- (x:xs x:y:ys x:y:z:zs)
-             deriving (Show)
+             deriving (Show, Eq)
 
 guavaParser = whiteSpace >> guavaModule
 
@@ -75,7 +77,7 @@ guavaModule = guavaModuleWithExports
 guavaModuleNoExports =
   do reserved "module"
      name <- identifier
-     stmts <- (sepBy statement endOfLine)
+     stmts <- statements
      return $ Module name stmts
 
 guavaModuleWithExports =
@@ -83,12 +85,18 @@ guavaModuleWithExports =
      name <- identifier
      reserved "exposing"
      exposes <- braces exposing
-     stmts <- (sepEndBy statement endOfLine)
+     stmts <- statements
      return $ ModuleExposing name exposes stmts
 
 exposing =
   do list <- (sepBy1 identifier comma)
      return $ Exposes list
+
+statements = (eof >> return (Statements []))
+ <|> (
+   do stmts <- (sepEndBy statement endOfLine)
+      return $ Statements stmts
+  )
 
 statement = (
   do fncStmt <- functionStatement
@@ -107,7 +115,7 @@ functionStatement = functionWithInlineTypeDef
 functionWithInlineTypeDef = 
   do reserved "function"
      name <- identifier
-     defArgs <- (parens functionDefinitionArguments)
+     defArgs <- functionDefinitionArguments
      symbol "::"
      valTypes <- valueTypes
      expr <- expression
@@ -116,7 +124,7 @@ functionWithInlineTypeDef =
 functionWithTypeDefRef =
   do reserved "function"
      name <- identifier
-     defArgs <- (parens functionDefinitionArguments)
+     defArgs <- functionDefinitionArguments
      symbol "::"
      typeDefRef <- identifier
      expr <- expression
@@ -129,7 +137,7 @@ functionMultipleInstancesTypeDef =
      typeDef <- typeDefinition
      fncImpls <- functionImplementations
      return $ FunctionMultipleInstancesTypeDef name typeDef fncImpls
-
+  
 functionMultipleInstancesTypeDefRef =
   do reserved "function"
      name <- identifier
@@ -141,11 +149,15 @@ functionImplementations = (sepBy functionImplementation endOfLine)
 
 functionImplementation =
   do name <- identifier
-     defArgs <- (parens functionDefinitionArguments)
+     defArgs <- functionDefinitionArguments
      expr <- expression
      return $ FunctionImpl name defArgs expr
 
-functionDefinitionArguments = functionDefinitionRegularArgs 
+functionDefinitionArguments = (
+  do symbol "()"
+     return $ Args []
+  ) 
+  <|> (parens functionDefinitionRegularArgs)
 
 functionDefinitionRegularArgs =
   do argList <- (sepBy1 functionDefinitionArgument comma)
@@ -309,3 +321,9 @@ parseFile file =
      case parse guavaParser "" program of
        Left e -> print e >> fail "parse error"
        Right r -> return r
+
+parseString :: String -> Module
+parseString str =
+   case parse guavaParser "" str of
+      Left e -> error $ show e
+      Right r -> r
