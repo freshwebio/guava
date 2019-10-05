@@ -1,6 +1,6 @@
 module Lexer (
   whiteSpace, lexer, reserved, identifier, comma, braces, parens,
-  symbol, reservedOp
+  symbol, reservedOp, stringLiteral
   ) where
 
 import Control.Monad
@@ -51,3 +51,5 @@ braces = Token.braces lexer
 parens = Token.parens lexer
 
 symbol = Token.symbol lexer
+
+stringLiteral = Token.stringLiteral lexer

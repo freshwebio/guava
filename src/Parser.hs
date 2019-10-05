@@ -6,13 +6,11 @@ import Text.Parsec
 import qualified Text.Parsec.Token as Token
 import Lexer
 
-data Module = Module String Stmts
-            | ModuleExposing String Exposing Stmts
-            deriving (Show, Eq)
+data Module = Module String Exposing Stmts deriving (Show, Eq)
 
-data Exposing = Exposes [String] deriving (Show, Eq)
+newtype Exposing = Exposes [String] deriving (Show, Eq)
 
-data Stmts = Statements [Stmt] deriving (Show, Eq)
+newtype Stmts = Statements [Stmt] deriving (Show, Eq)
 
 data Stmt = Function FunctionStmt
           | TypeDefinition TypeDef
@@ -32,11 +30,12 @@ data ValueType = ValueTypeSingle String |
                  ValueTypeList String |
                  ValueTypeFunction [ValueType] deriving (Show, Eq)
 
-data DefArguments = Args [DefArgument] deriving (Show, Eq)
+newtype DefArguments = Args [DefArgument] deriving (Show, Eq)
 
 data DefArgument = DefArgName String | DefArgPattern Pattern deriving (Show, Eq)
 
-data Expr = CaseBlock Expr CaseMatches
+data Expr = StringLiteral String
+          | CaseBlock Expr CaseMatches
           | If BExpr Expr Expr
           | BoolExpr BExpr
           | LetInExpr [LetVarBind] Expr
@@ -56,11 +55,11 @@ data BExpr = BoolConst Bool
            | BoolFunctionCall String CallArguments
            deriving (Show, Eq)
 
-data CallArguments = CallArgs [Expr] deriving (Show, Eq)
+newtype CallArguments = CallArgs [Expr] deriving (Show, Eq)
 
 data BBinOp = And | Or deriving (Show, Eq)
 
-data CaseMatches = CaseMatchSeq [CaseMatch] deriving (Show, Eq)
+newtype CaseMatches = CaseMatchSeq [CaseMatch] deriving (Show, Eq)
 
 data CaseMatch = Case Pattern Expr deriving (Show, Eq)
 
@@ -71,108 +70,75 @@ data Pattern = PatternBindingEmptyList -- []
 
 guavaParser = whiteSpace >> guavaModule
 
-guavaModule = guavaModuleWithExports 
-            <|> guavaModuleNoExports
-
-guavaModuleNoExports =
+guavaModule =
   do reserved "module"
      name <- identifier
-     stmts <- statements
-     return $ Module name stmts
+     exposes <- exposing
+     Module name exposes <$> statements
 
-guavaModuleWithExports =
-  do reserved "module"
-     name <- identifier
-     reserved "exposing"
-     exposes <- braces exposing
-     stmts <- statements
-     return $ ModuleExposing name exposes stmts
-
-exposing =
-  do list <- (sepBy1 identifier comma)
-     return $ Exposes list
+exposing = (
+  do reserved "exposing"
+     Exposes <$> braces (sepBy1 identifier comma)
+  ) <|> return (Exposes [])
 
 statements = (eof >> return (Statements []))
- <|> (
-   do stmts <- (sepEndBy statement endOfLine)
-      return $ Statements stmts
-  )
+           <|> Statements <$> sepEndBy statement endOfLine
 
-statement = (
-  do fncStmt <- functionStatement
-     return $ Function fncStmt
-  ) 
-  <|> (
-  do typeDef <- typeDefinition
-     return $ TypeDefinition typeDef
-  )
+statement = Function <$> functionStatement
+          <|> TypeDefinition <$> typeDefinition
 
-functionStatement = functionWithInlineTypeDef
-                  <|> functionMultipleInstancesTypeDef
-                  <|> functionMultipleInstancesTypeDefRef
-                  <|> functionWithTypeDefRef
+functionStatement = 
+   do reserved "function"
+      name <- identifier
+      functionStatementBody name
 
-functionWithInlineTypeDef = 
-  do reserved "function"
-     name <- identifier
-     defArgs <- functionDefinitionArguments
+functionStatementBody name = functionWithInlineTypeDef name
+                  <|> functionMultipleInstancesTypeDef name
+                  <|> functionMultipleInstancesTypeDefRef name
+                  <|> functionWithTypeDefRef name
+
+functionWithInlineTypeDef name = 
+  do defArgs <- functionDefinitionArguments
      symbol "::"
-     valTypes <- valueTypes
-     expr <- expression
-     return $ FunctionWithInlineTypeDef name defArgs valTypes expr
+     vTypes <- valueTypes
+     FunctionWithInlineTypeDef name defArgs vTypes <$> braces expression
 
-functionWithTypeDefRef =
-  do reserved "function"
-     name <- identifier
-     defArgs <- functionDefinitionArguments
+functionWithTypeDefRef name =
+  do defArgs <- functionDefinitionArguments
      symbol "::"
      typeDefRef <- identifier
-     expr <- expression
-     return $ FunctionWithTypeDefRef name defArgs typeDefRef expr
+     FunctionWithTypeDefRef name defArgs typeDefRef <$> expression
 
-functionMultipleInstancesTypeDef =
-  do reserved "function"
-     name <- identifier
-     symbol "::"
+functionMultipleInstancesTypeDef name =
+  do symbol "::"
      typeDef <- typeDefinition
      fncImpls <- functionImplementations
-     return $ FunctionMultipleInstancesTypeDef name typeDef fncImpls
+     FunctionMultipleInstancesTypeDef name typeDef <$> functionImplementations
   
-functionMultipleInstancesTypeDefRef =
-  do reserved "function"
-     name <- identifier
-     typeDefRef <- identifier
-     fncImpls <- functionImplementations
-     return $ FunctionMultipleInstancesTypeDefRef name typeDefRef fncImpls
+functionMultipleInstancesTypeDefRef name =
+  do typeDefRef <- identifier
+     FunctionMultipleInstancesTypeDefRef name typeDefRef <$> functionImplementations
 
-functionImplementations = (sepBy functionImplementation endOfLine)
+functionImplementations = sepBy functionImplementation endOfLine
 
 functionImplementation =
   do name <- identifier
      defArgs <- functionDefinitionArguments
-     expr <- expression
-     return $ FunctionImpl name defArgs expr
+     FunctionImpl name defArgs <$> expression
 
-functionDefinitionArguments = (
+functionDefinitionArguments =
   do symbol "()"
      return $ Args []
-  ) 
-  <|> (parens functionDefinitionRegularArgs)
+  <|> parens functionDefinitionRegularArgs
 
-functionDefinitionRegularArgs =
-  do argList <- (sepBy1 functionDefinitionArgument comma)
-     return $ Args argList
+functionDefinitionRegularArgs = Args <$> sepBy1 functionDefinitionArgument comma
 
-functionDefinitionArgument = 
-  (do argName <- identifier
-      return $ DefArgName argName)
-  <|> 
-  (do ptn <- pattern
-      return $ DefArgPattern ptn)
+functionDefinitionArgument = DefArgName <$> identifier
+                           <|> DefArgPattern <$> parsePattern
 
-pattern = patternBindingEmptyList
-        <|> patternBindingListDestructureNElements
-        <|> patternBindingListDestructure
+parsePattern = patternBindingEmptyList
+             <|> patternBindingListDestructureNElements
+             <|> patternBindingListDestructure
 
 patternBindingEmptyList =
   do symbol "[]"
@@ -191,100 +157,87 @@ typeDefinition =
   do reserved "type"
      typeName <- identifier
      symbol "::"
-     valTypes <- valueTypes
-     return $ TypeDef typeName valTypes
+     TypeDef typeName <$> valueTypes
 
-valueTypes = sepBy1 valueType $ symbol "->"
+valueTypes =
+   do first <- valueType
+      valueTypesList first
 
-valueType = valueTypeSingle
-          <|> valueTypeList
-          <|> valueTypeFunction
+valueTypesList first = (
+   do symbol "->"
+      rest <- sepBy1 valueType (symbol "->")
+      return $ first:rest
+   ) <|> return [first]
 
-valueTypeSingle = 
-  do typeIdent <- identifier
-     return $ ValueTypeSingle typeIdent
+valueType = valueTypeFunction
+          <|> valueTypeSingleOrList
 
-valueTypeList =
-  do typeIdent <- identifier
-     symbol "[]"
+valueTypeSingleOrList =
+   do typeIdent <- identifier
+      completeValueTypeSingleOrList typeIdent
+
+completeValueTypeSingleOrList typeIdent = valueTypeList typeIdent
+                              <|> return (ValueTypeSingle typeIdent)
+
+valueTypeList typeIdent =
+  do symbol "[]"
      return $ ValueTypeList typeIdent
 
 valueTypeFunction =
   do valueTypes <- parens $ sepBy1 valueType $ symbol "->"
      return $ ValueTypeFunction valueTypes
 
-expression = (
-  do reserved "case"
-     expr <- expression
-     matches <- (braces caseMatches)
-     return $ CaseBlock expr matches
-  ) 
+expression = StringLiteral <$> stringLiteral
+  <|> do reserved "case"
+         expr <- expression
+         CaseBlock expr <$> braces caseMatches
   <|> ifExpression 
-  <|> (
-  do bExpr <- boolExpression
-     return $ BoolExpr bExpr
-  ) 
-  <|> (
-  do reserved "let"
-     letBindList <- (sepBy1 letVarBind comma)
-     expr <- expression
-     return $ LetInExpr letBindList expr
-  )
-  <|> (
-  do symbol "["
-     listElems <- (sepBy1 listElementExpr comma)
-     symbol "]"
-     return $ List listElems
-  )
+  <|> BoolExpr <$> boolExpression
+  <|> do reserved "let"
+         letBindList <- sepBy1 letVarBind comma
+         LetInExpr letBindList <$> expression
+  <|> do symbol "["
+         listElems <- sepBy1 listElementExpr comma
+         symbol "]"
+         return $ List listElems
 
 letVarBind =
   do ident <- identifier
      reservedOp "="
-     expr <- expression
-     return $ LetVarBind ident expr
+     LetVarBind ident <$> expression
 
 listElementExpr = (
-    do symbol "..."
-       expr <- expression
-       return $ ListElemSpread expr
-  ) 
-  <|> (
-    do expr <- expression
-       return $ ListElemExpr expr
+   do symbol "..."
+      ListElemSpread <$> expression
   )
+  <|> ListElemExpr <$> expression
 
-ifExpression = ( 
+ifExpression = 
   do reserved "if"
      bExpr <- boolExpression
      reserved "then"
      thenExpr <- expression
      reserved "else"
-     elseExpr <- expression
-     return $ If bExpr thenExpr elseExpr
-  )
-  <|> (
+     If bExpr thenExpr <$> expression
+  <|>
   do reserved "if"
      bExpr <- boolExpression
      thenExpr <- braces expression
      reserved "else"
      elseExpr <- braces expression
      return $ If bExpr thenExpr elseExpr
-  )
 
-caseMatches = 
-  do caseMatches <- (sepBy1 caseMatch endOfLine)
-     return $ CaseMatchSeq caseMatches
+caseMatches = CaseMatchSeq <$> sepBy1 caseMatch endOfLine
 
 caseMatch =
-  do pttn <- pattern
-     expr <- expression
-     return $ Case pttn expr
+  do pttn <- parsePattern
+     Case pttn <$> expression
 
 boolExpression = buildExpressionParser boolOperators boolTerm
 
 boolOperators = [
     [
-      Prefix (reservedOp "not" >> return (Not))
+      Prefix (reservedOp "not" >> return Not)
     ],
     [
       Infix (reservedOp "and" >> return (BBinary And)) AssocLeft,
@@ -300,10 +253,7 @@ boolTermParens = parens boolTermNoParens
 boolTermNoParens = boolExpression
          <|> (reserved "true" >> return (BoolConst True))
          <|> (reserved "false" >> return (BoolConst False))
-         <|> (
-           do ident <- identifier
-              return $ BoolVar ident
-         )
+         <|> BoolVar <$> identifier
          <|> boolTermFunctionCall
 
 boolTermFunctionCall =
@@ -311,9 +261,7 @@ boolTermFunctionCall =
      callArgs <- parens callArguments
      return $ BoolFunctionCall name callArgs
 
-callArguments =
-  do callArgs <- (sepBy1 expression comma)
-     return $ CallArgs callArgs
+callArguments = CallArgs <$> sepBy1 expression comma
 
 parseFile :: String -> IO Module
 parseFile file =
