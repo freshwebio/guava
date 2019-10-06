@@ -35,6 +35,8 @@ newtype DefArguments = Args [DefArgument] deriving (Show, Eq)
 data DefArgument = DefArgName String | DefArgPattern Pattern deriving (Show, Eq)
 
 data Expr = StringLiteral String
+          | IntegerConst Integer
+          | FloatConst Double
           | CaseBlock Expr CaseMatches
           | If BExpr Expr Expr
           | BoolExpr BExpr
@@ -188,6 +190,8 @@ valueTypeFunction =
      return $ ValueTypeFunction valueTypes
 
 expression = StringLiteral <$> stringLiteral
+  <|> FloatConst <$> float
+  <|> IntegerConst <$> integer
   <|> do reserved "case"
          expr <- expression
          CaseBlock expr <$> braces caseMatches
@@ -196,9 +200,7 @@ expression = StringLiteral <$> stringLiteral
   <|> do reserved "let"
          letBindList <- sepBy1 letVarBind comma
          LetInExpr letBindList <$> expression
-  <|> do symbol "["
-         listElems <- sepBy1 listElementExpr comma
-         symbol "]"
+  <|> do listElems <- brackets (sepBy1 listElementExpr comma)
          return $ List listElems
 
 letVarBind =
@@ -250,8 +252,7 @@ boolTerm = boolTermParens
 
 boolTermParens = parens boolTermNoParens
 
-boolTermNoParens = boolExpression
-         <|> (reserved "true" >> return (BoolConst True))
+boolTermNoParens = (reserved "true" >> return (BoolConst True))
          <|> (reserved "false" >> return (BoolConst False))
          <|> BoolVar <$> identifier
          <|> boolTermFunctionCall

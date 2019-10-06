@@ -1,0 +1,5 @@
+module Order exposing { total }
+
+function total() :: Float {
+  540.34
+}

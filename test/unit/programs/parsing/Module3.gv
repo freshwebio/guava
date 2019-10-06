@@ -1,5 +1,5 @@
 module Order exposing { create }
 
 function create() :: String {
-  "Result"
+  "931dd27e-5c78-4953-9742-52138fb9e9ba"
 }

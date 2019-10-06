@@ -1,0 +1,8 @@
+module Order exposing { create }
+
+function create() :: String[] {
+  [
+    "931dd27e-5c78-4953-9742-52138fb9e9ba", 
+    "3870354d-0648-4bd5-ba01-1dd3cd44539a"
+  ]
+}
