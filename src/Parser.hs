@@ -190,7 +190,7 @@ valueTypeFunction =
      return $ ValueTypeFunction valueTypes
 
 expression = StringLiteral <$> stringLiteral
-  <|> FloatConst <$> float
+  <|> try (FloatConst <$> float)
   <|> IntegerConst <$> integer
   <|> do reserved "case"
          expr <- expression
