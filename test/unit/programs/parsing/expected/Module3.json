@@ -1,0 +1,29 @@
+{
+  "description": "should parse a program with a function that returns a string literal with a single value inline type definition",
+  "module": {
+    "name": "Order",
+    "exposes": {
+      "exposed": ["create"]
+    },
+    "moduleStatements": {
+      "statementList": [{
+        "kind": "function",
+        "fncStatement": {
+          "kind": "functionWithInlineTypeDef",
+          "functionName": "create",
+          "defArgs": {
+            "args": []
+          },
+          "functionTypeDefValueTypes": [{
+            "kind": "valueTypeSingle",
+            "valueTypeName": "String"
+          }],
+          "functionExpr": {
+            "kind": "stringLiteral",
+            "stringLiteralValue": "931dd27e-5c78-4953-9742-52138fb9e9ba"
+          }
+        }
+      }]
+    }
+  }
+}

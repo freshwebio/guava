@@ -1,0 +1,79 @@
+{
+  "description": "should parse a program with a function that returns a floating point with arguments and an inline type definition with mutliple parameters and an output type",
+  "module": {
+    "name": "Order",
+    "exposes": {
+      "exposed": ["total"]
+    },
+    "moduleStatements": {
+      "statementList": [{
+        "kind": "function",
+        "fncStatement": {
+          "kind": "functionWithInlineTypeDef",
+          "functionName": "total",
+          "defArgs": {
+            "args": [{
+              "kind": "defArgName",
+              "argName": "priceStr"
+            }, {
+              "kind": "defArgName",
+              "argName": "taxPerc"
+            }, {
+              "kind": "defArgName",
+              "argName": "extractPriceInPence"
+            }]
+          },
+          "functionTypeDefValueTypes": [{
+            "kind": "valueTypeSingle",
+            "valueTypeName": "String"
+          }, {
+            "kind": "valueTypeSingle",
+            "valueTypeName": "String"
+          }, {
+            "kind": "valueTypeFunction",
+            "functionValueTypes": [{
+              "kind": "valueTypeSingle",
+              "valueTypeName": "String"
+            }, {
+              "kind": "valueTypeSingle",
+              "valueTypeName": "String"
+            }, {
+              "kind": "valueTypeSingle",
+              "valueTypeName": "Integer"
+            }]
+          }, {
+            "kind": "valueTypeSingle",
+            "valueTypeName": "Float"
+          }],
+          "functionExpr": {
+            "kind": "arithmeticExpr",
+            "arithmeticExpr": {
+              "kind": "aBinary",
+              "arithmeticBinaryOperator": {
+                "kind": "divide"
+              },
+              "arithmeticExpressionLeft": {
+                "kind": "arithmeticFunctionCall",
+                "calledArithmeticFunctionName": "extractPriceInPence",
+                "arithmeticFuncCallArgs": {
+                  "kind": "callArgs",
+                  "callArgs": [{
+                    "kind": "var",
+                    "varName": "priceStr"
+                  }, {
+                    "kind": "var",
+                    "varName": "taxPerc"
+                  }]
+                }
+              },
+              "arithmeticExpressionRight": {
+                "kind": "integerConst",
+                "intConstValue": 100
+              }
+            }
+          }
+        }
+      }]
+    }
+  }
+}

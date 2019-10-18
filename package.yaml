@@ -40,7 +40,9 @@ executables:
 tests:
   unit-tests:
     main:                Spec.hs
-    source-dirs:         test/unit
+    source-dirs:         
+    - test/unit
+    - test/tools
     ghc-options:
     - -threaded
     - -rtsopts
@@ -49,6 +51,12 @@ tests:
     - guava
     - hspec
     - hspec-discover
+    - text
+    - bytestring
+    - unordered-containers
+    - aeson
+    - directory
+    - MissingH >= 1.4.1.0 && < 2
   integration-tests:
     main:                Spec.hs
     source-dirs:         test/integration

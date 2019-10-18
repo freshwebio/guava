@@ -1,0 +1,5 @@
+module Order exposing { total }
+
+function total(priceStr, taxPerc, extractPriceInPence) :: String -> String -> (String -> String -> Integer) -> Float {
+  extractPriceInPence(priceStr, taxPerc) / 100
+}

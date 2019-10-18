@@ -1,5 +1,0 @@
-
-module TestModule exposing { testFunction }
-
-function testFunction() :: String -> String {
-}

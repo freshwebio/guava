@@ -6,68 +6,84 @@ import Text.Parsec
 import qualified Text.Parsec.Token as Token
 import Lexer
 
-data Module = Module String Exposing Stmts deriving (Show, Eq)
+data Module = Module { name :: String, exposes :: Exposing, moduleStatements :: Stmts } deriving (Show, Eq)
 
-newtype Exposing = Exposes [String] deriving (Show, Eq)
+newtype Exposing = Exposes { exposed :: [String] } deriving (Show, Eq)
 
-newtype Stmts = Statements [Stmt] deriving (Show, Eq)
+newtype Stmts = Statements { statementList :: [Stmt] } deriving (Show, Eq)
 
-data Stmt = Function FunctionStmt
-          | TypeDefinition TypeDef
+data Stmt = Function { fncStatement :: FunctionStmt }
+          | TypeDefinition { typeDef :: TypeDef }
           deriving (Show, Eq)
 
-data FunctionStmt = FunctionWithInlineTypeDef String DefArguments [ValueType] Expr
-                  | FunctionMultipleInstancesTypeDef String TypeDef [FunctionImpl]
-                  | FunctionMultipleInstancesTypeDefRef String String [FunctionImpl]
-                  | FunctionWithTypeDefRef String DefArguments String Expr
+data FunctionStmt = FunctionWithInlineTypeDef { functionName :: String, defArgs :: DefArguments, functionTypeDefValueTypes :: [ValueType], functionExpr :: Expr }
+                  | FunctionMultipleInstancesTypeDef { functionName :: String, functionTypeDef :: TypeDef,  functionImpls :: [FunctionImpl] }
+                  | FunctionMultipleInstancesTypeDefRef { functionName :: String, functionTypeDefRef :: String, functionImpls :: [FunctionImpl] }
+                  | FunctionWithTypeDefRef { functionName :: String, defArgs :: DefArguments, functionTypeDefRef :: String, functionExpr :: Expr }
                   deriving (Show, Eq)
 
-data FunctionImpl = FunctionImpl String DefArguments Expr deriving (Show, Eq)
+data FunctionImpl = FunctionImpl { functionImplName :: String, functionDefArgs :: DefArguments, functionImplExpression :: Expr } deriving (Show, Eq)
 
-data TypeDef = TypeDef String [ValueType] deriving (Show, Eq)
+data TypeDef = TypeDef { typeDefName :: String, typeDefValueTypes :: [ValueType] } deriving (Show, Eq)
 
-data ValueType = ValueTypeSingle String |
-                 ValueTypeList String |
-                 ValueTypeFunction [ValueType] deriving (Show, Eq)
+data ValueType = ValueTypeSingle { valueTypeName :: String } |
+                 ValueTypeList { valueTypeName :: String } |
+                 ValueTypeFunction { functionValueTypes :: [ValueType] } deriving (Show, Eq)
 
-newtype DefArguments = Args [DefArgument] deriving (Show, Eq)
+newtype DefArguments = Args { args :: [DefArgument] } deriving (Show, Eq)
 
-data DefArgument = DefArgName String | DefArgPattern Pattern deriving (Show, Eq)
+data DefArgument = DefArgName { argName :: String } 
+                 | DefArgPattern { argPattern :: Pattern } deriving (Show, Eq)
 
-data Expr = StringLiteral String
-          | IntegerConst Integer
-          | FloatConst Double
-          | CaseBlock Expr CaseMatches
-          | If BExpr Expr Expr
-          | BoolExpr BExpr
-          | LetInExpr [LetVarBind] Expr
-          | List [ListElementExpr]
+data Expr = StringLiteral { stringLiteralValue :: String }
+          | Var { varName :: String }
+          | CaseBlock { caseCondExpr :: Expr, caseMatchSeq :: CaseMatches }
+          | If { boolExpr :: BExpr, ifThen :: Expr, ifElse :: Expr }
+          | BoolExpr { boolExpr :: BExpr }
+          | ArithmeticExpr { arithmeticExpr :: AExpr }
+          | LetInExpr { letVarBindings :: [LetVarBind], letInUsage :: Expr }
+          | List { listElements :: [ListElementExpr] }
+          | FunctionCall { calledFunctionName :: String, functionCallArgs :: CallArguments }
           deriving (Show, Eq)
 
-data ListElementExpr = ListElemSpread Expr 
-                     | ListElemExpr Expr
+data ListElementExpr = ListElemSpread { spreadExpression :: Expr }
+                     | ListElemExpr { listElemExpression :: Expr }
                      deriving (Show, Eq)
 
-data LetVarBind = LetVarBind String Expr deriving (Show, Eq)
+data LetVarBind = LetVarBind { varBindName :: String, varBindExpression :: Expr } deriving (Show, Eq)
 
-data BExpr = BoolConst Bool
-           | BoolVar String
-           | Not BExpr
-           | BBinary BBinOp BExpr BExpr
-           | BoolFunctionCall String CallArguments
+data BExpr = BoolConst { boolConstValue :: Bool }
+           | BoolVar { boolVarName :: String }
+           | Not { negateBoolExpression :: BExpr }
+           | BBinary { boolBinaryOperator :: BBinOp, boolExpressionLeft :: BExpr, boolExpressionRight :: BExpr }
+           | BoolFunctionCall { calledBoolFunctionName :: String, boolFuncCallArgs :: CallArguments }
            deriving (Show, Eq)
 
-newtype CallArguments = CallArgs [Expr] deriving (Show, Eq)
+data AExpr = IntegerConst { intConstValue :: Integer }
+           | FloatConst { floatConstValue :: Double }
+           | NumericVar { numericVarName :: String }
+           | Neg { negativeArithmeticExpression :: AExpr }
+           | ArithmeticFunctionCall { calledArithmeticFunctionName :: String, arithmeticFuncCallArgs :: CallArguments }
+           | ABinary { arithmeticBinaryOperator :: ABinOp,  arithmeticExpressionLeft :: AExpr, arithmeticExpressionRight :: AExpr }
+           deriving (Show, Eq)
+
+data ABinOp = Add
+            | Subtract
+            | Multiply
+            | Divide
+            deriving (Show, Eq)
+
+newtype CallArguments = CallArgs { callArgs :: [Expr] } deriving (Show, Eq)
 
 data BBinOp = And | Or deriving (Show, Eq)
 
-newtype CaseMatches = CaseMatchSeq [CaseMatch] deriving (Show, Eq)
+newtype CaseMatches = CaseMatchSeq { caseMatchList :: [CaseMatch] } deriving (Show, Eq)
 
-data CaseMatch = Case Pattern Expr deriving (Show, Eq)
+data CaseMatch = Case { caseMatchPattern :: Pattern, caseMatchExpression :: Expr } deriving (Show, Eq)
 
 data Pattern = PatternBindingEmptyList -- []
-             | PatternBindingListDestructureNElements [String] -- (x:[] x:y:[] x:y:z:[])
-             | PatternBindingListDestructure [String] String -- (x:xs x:y:ys x:y:z:zs)
+             | PatternBindingListDestructureNElements { destructuredElements :: [String] } -- (x:[] x:y:[] x:y:z:[])
+             | PatternBindingListDestructure { destructuredElements :: [String], tail :: String } -- (x:xs x:y:ys x:y:z:zs)
              deriving (Show, Eq)
 
 guavaParser = whiteSpace >> guavaModule
@@ -128,10 +144,11 @@ functionImplementation =
      defArgs <- functionDefinitionArguments
      FunctionImpl name defArgs <$> expression
 
-functionDefinitionArguments =
-  do symbol "()"
-     return $ Args []
-  <|> parens functionDefinitionRegularArgs
+functionDefinitionArguments = try (parens functionDefinitionRegularArgs)
+  <|> (
+     do symbol "()"
+        return $ Args []
+  )
 
 functionDefinitionRegularArgs = Args <$> sepBy1 functionDefinitionArgument comma
 
@@ -190,13 +207,13 @@ valueTypeFunction =
      return $ ValueTypeFunction valueTypes
 
 expression = StringLiteral <$> stringLiteral
-  <|> try (FloatConst <$> float)
-  <|> IntegerConst <$> integer
   <|> do reserved "case"
          expr <- expression
          CaseBlock expr <$> braces caseMatches
   <|> ifExpression 
   <|> BoolExpr <$> boolExpression
+  <|> ArithmeticExpr <$> arithmeticExpression
+  <|> Var <$> identifier
   <|> do reserved "let"
          letBindList <- sepBy1 letVarBind comma
          LetInExpr letBindList <$> expression
@@ -254,15 +271,44 @@ boolTermParens = parens boolTermNoParens
 
 boolTermNoParens = (reserved "true" >> return (BoolConst True))
          <|> (reserved "false" >> return (BoolConst False))
-         <|> BoolVar <$> identifier
          <|> boolTermFunctionCall
+         <|> BoolVar <$> identifier
 
 boolTermFunctionCall =
   do name <- identifier
-     callArgs <- parens callArguments
+     callArgs <- callArguments
      return $ BoolFunctionCall name callArgs
 
-callArguments = CallArgs <$> sepBy1 expression comma
+arithmeticExpression = buildExpressionParser arithmeticOperators arithmeticTerm
+
+arithmeticOperators = [
+   [Prefix (reservedOp "-" >> return Neg)],
+   [
+      Infix (reservedOp "*" >> return (ABinary Multiply)) AssocLeft,
+      Infix (reservedOp "/" >> return (ABinary Divide)) AssocLeft
+   ],
+   [
+      Infix (reservedOp "+" >> return (ABinary Add)) AssocLeft,
+      Infix (reservedOp "-" >> return (ABinary Subtract)) AssocLeft
+   ]
+  ]
+
+arithmeticTerm = parens arithmeticExpression
+               <|> try (FloatConst <$> float)
+               <|> IntegerConst <$> integer
+               <|> arithmeticTermFunctionCall
+               <|> NumericVar <$> identifier
+
+arithmeticTermFunctionCall = 
+   do name <- identifier
+      callArgs <- callArguments
+      return $ ArithmeticFunctionCall name callArgs
+
+callArguments = CallArgs <$> try (parens (sepBy1 expression comma))
+                <|> (
+                   do symbol "()"
+                      return $ CallArgs []
+                )
 
 parseFile :: String -> IO Module
 parseFile file =

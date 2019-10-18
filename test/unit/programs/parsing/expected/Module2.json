@@ -1,0 +1,12 @@
+{
+  "description": "should parse a program that is simply a module definition exposing functions",
+  "module": {
+    "name": "Order",
+    "exposes": {
+      "exposed": ["create", "update", "delete"]
+    },
+    "moduleStatements": {
+      "statementList": []
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "description": "should parse a program with a function that returns a floating point constant with a single value inline type definition",
+  "module": {
+    "name": "Order",
+    "exposes": {
+      "exposed": ["total"]
+    },
+    "moduleStatements": {
+      "statementList": [{
+        "kind": "function",
+        "fncStatement": {
+          "kind": "functionWithInlineTypeDef",
+          "functionName": "total",
+          "defArgs": {
+            "args": []
+          },
+          "functionTypeDefValueTypes": [{
+            "kind": "valueTypeSingle",
+            "valueTypeName": "Float"
+          }],
+          "functionExpr": {
+            "kind": "arithmeticExpr",
+            "arithmeticExpr": {
+              "kind": "floatConst",
+              "floatConstValue": 540.34
+            }
+          }
+        }
+      }]
+    }
+  }
+}
